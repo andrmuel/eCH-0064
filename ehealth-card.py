@@ -10,6 +10,9 @@
 Communicate with Swiss eHealth cards as specified by eCH-0064.
 """
 
+import sys
+import itertools
+from optparse import OptionParser
 from smartcard.System import readers
 
 # master file
@@ -65,7 +68,21 @@ EF = {
 }
 
 if __name__ == "__main__":
-	r = readers()[0]
+	parser = OptionParser(usage="%prog <cmd>", version="%prog 0.1")
+	parser.add_option("-r", "--reader", type="int", dest="reader", help="use reader number N", metavar="N")
+	parser.add_option("-l", "--list-readers", dest="list_readers", action="store_true", help="list available readers")
+	parser.add_option("-f", "--file", dest="filename", help="write report to FILE", metavar="FILE")
+	parser.add_option("-v", "--verbosity", action="count", dest="verbose", default=0, help="verbose output [default: %default]")
+	(options, args) = parser.parse_args()
+
+	if options.list_readers:
+		c = itertools.count()
+		for reader in readers():
+			print "%s: $s" % (c.next(), reader)
+		sys.exit(0)
+
+	if options.reader:
+
 	c = r.createConnection()
 	c.connect()
 	SELECT = [0x00, 0xa4, 0x00, 0x00, 0x02]
