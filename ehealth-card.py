@@ -15,58 +15,7 @@ import itertools
 from optparse import OptionParser
 import smartcard
 from smartcard.System import readers
-
-# master file
-MF = [0x3f, 0x00]
-
-# dedicated files
-DF = {
-	'NOT': [0xDF, 0x01], # emergency data
-	'PKCS15': [0xDF, 0x02] # PKCS#15 data
-}
-
-# elementary files
-EF = {
-	# main directory
-	'DIR':                     [ 0x2F, 0x00],
-	'ATR':                     [ 0x2F, 0x01],
-	'ICCSN':                   [ 0x2F, 0x05],
-	'PIN1':                    [ 0x00, 0x11],
-	'PIN2 ':                   [ 0x00, 0x12],
-	'PUK':                     [ 0x00, 0x14],
-	'ID':                      [ 0x2F, 0x06],
-	'AD':                      [ 0x2F, 0x07],
-	'VERSION':                 [ 0x56, 0x00],
-	'CVC.PDC':                 [ 0x2F, 0x03],
-	'CVC.CA_ORG_PDC':          [ 0x2F, 0x08],
-	'PrK.SB ':                 [ 0x00, 0x15],
-	'CVC.CA_ROOT_VK':          [ 0x2F, 0x04],
-	'PuK.CA_ROOT_VK':          [ 0x00, 0x1C],
-	'C2CSTATE':                [ 0x00, 0x1D],
-	'GPKeys':                  [ 0x00, 0x01],
-	# emergency data directory
-	'BGTD':                    [ 0xDF, 0x01, 0x1F, 0x01],
-	'IMMD':                    [ 0xDF, 0x01, 0x1F, 0x02],
-	'TPLD':                    [ 0xDF, 0x01, 0x1F, 0x03],
-	'KHUF':                    [ 0xDF, 0x01, 0x1F, 0x04],
-	'ZUSE':                    [ 0xDF, 0x01, 0x1F, 0x05],
-	'MEDI':                    [ 0xDF, 0x01, 0x1F, 0x06],
-	'ALLG':                    [ 0xDF, 0x01, 0x1F, 0x07],
-	'ADDR':                    [ 0xDF, 0x01, 0x1F, 0x08],
-	'VERF':                    [ 0xDF, 0x01, 0x1F, 0x09],
-	'CIAInfo':                 [ 0xDF, 0x02, 0x50, 0x32],
-	'OD':                      [ 0xDF, 0x02, 0x50, 0x31],
-	'PrKD':                    [ 0xDF, 0x02, 0x1F, 0x01],
-	'PuKD':                    [ 0xDF, 0x02, 0x1F, 0x02],
-	'CD':                      [ 0xDF, 0x02, 0x1F, 0x03],
-	'DCOD':                    [ 0xDF, 0x02, 0x1F, 0x04],
-	'AOD':                     [ 0xDF, 0x02, 0x1F, 0x05],
-	'CERT':                    [ 0xDF, 0x02, 0x1F, 0x06],
-	'PuK.DEC':                 [ 0xDF, 0x02, 0x1F, 0x07],
-	'PuK.X509':                [ 0xDF, 0x02, 0x1F, 0x08],
-	'PrK.DEC':                 [ 0xDF, 0x02, 0x00, 0x16],
-	'PrK.X509':                [ 0xDF, 0x02, 0x00, 0x17]
-}
+from smartcard.ATR import ATR
 
 def l2s(l):
 	return "".join(map(lambda x: chr(x), l)).decode('utf-8')
@@ -82,9 +31,12 @@ class SmartCardCommunication:
 		self.verbosity = verbosity
 		try:
 			self.connection.connect()
-		except smartcard.exceptions.cardconnectionexception, e:
+		except smartcard.Exceptions.CardConnectionException, e:
 			print e.message
 			sys.exit(1)
+
+	def get_atr(self):
+		return self.connection.getATR()
 
 	def select_file(self, file_id):
 		SELECT = [0x00, 0xa4, 0x00, 0x00, len(file_id)]
@@ -107,11 +59,77 @@ class SmartCardCommunication:
 
 
 class HealthCard:
+	"""
+	Communicate with Swiss health insurance card (eCH-0064).
+	"""
+
+	# expected answer to reset
+	ATR = [0x3B, 0x9F, 0x13, 0x81, 0xB1, 0x80, 0x37, 0x1F, 0x03, 0x80, 0x31, 0xF8, 0x69, 0x4D, 0x54, 0x43, 0x4F, 0x53, 0x70, 0x02, 0x01, 0x02, 0x81, 0x07, 0x86]
+
+	# master file
+	MF = [0x3f, 0x00]
+
+	# dedicated files
+	DF = {
+		'NOT': [0xDF, 0x01], # emergency data
+		'PKCS15': [0xDF, 0x02] # PKCS#15 data
+	}
+
+	# elementary files
+	EF = {
+		# main directory
+		'DIR':                     [ 0x2F, 0x00],
+		'ATR':                     [ 0x2F, 0x01],
+		'ICCSN':                   [ 0x2F, 0x05],
+		'PIN1':                    [ 0x00, 0x11],
+		'PIN2 ':                   [ 0x00, 0x12],
+		'PUK':                     [ 0x00, 0x14],
+		'ID':                      [ 0x2F, 0x06],
+		'AD':                      [ 0x2F, 0x07],
+		'VERSION':                 [ 0x56, 0x00],
+		'CVC.PDC':                 [ 0x2F, 0x03],
+		'CVC.CA_ORG_PDC':          [ 0x2F, 0x08],
+		'PrK.SB ':                 [ 0x00, 0x15],
+		'CVC.CA_ROOT_VK':          [ 0x2F, 0x04],
+		'PuK.CA_ROOT_VK':          [ 0x00, 0x1C],
+		'C2CSTATE':                [ 0x00, 0x1D],
+		'GPKeys':                  [ 0x00, 0x01],
+		# emergency data directory
+		'BGTD':                    [ 0xDF, 0x01, 0x1F, 0x01],
+		'IMMD':                    [ 0xDF, 0x01, 0x1F, 0x02],
+		'TPLD':                    [ 0xDF, 0x01, 0x1F, 0x03],
+		'KHUF':                    [ 0xDF, 0x01, 0x1F, 0x04],
+		'ZUSE':                    [ 0xDF, 0x01, 0x1F, 0x05],
+		'MEDI':                    [ 0xDF, 0x01, 0x1F, 0x06],
+		'ALLG':                    [ 0xDF, 0x01, 0x1F, 0x07],
+		'ADDR':                    [ 0xDF, 0x01, 0x1F, 0x08],
+		'VERF':                    [ 0xDF, 0x01, 0x1F, 0x09],
+		'CIAInfo':                 [ 0xDF, 0x02, 0x50, 0x32],
+		'OD':                      [ 0xDF, 0x02, 0x50, 0x31],
+		'PrKD':                    [ 0xDF, 0x02, 0x1F, 0x01],
+		'PuKD':                    [ 0xDF, 0x02, 0x1F, 0x02],
+		'CD':                      [ 0xDF, 0x02, 0x1F, 0x03],
+		'DCOD':                    [ 0xDF, 0x02, 0x1F, 0x04],
+		'AOD':                     [ 0xDF, 0x02, 0x1F, 0x05],
+		'CERT':                    [ 0xDF, 0x02, 0x1F, 0x06],
+		'PuK.DEC':                 [ 0xDF, 0x02, 0x1F, 0x07],
+		'PuK.X509':                [ 0xDF, 0x02, 0x1F, 0x08],
+		'PrK.DEC':                 [ 0xDF, 0x02, 0x00, 0x16],
+		'PrK.X509':                [ 0xDF, 0x02, 0x00, 0x17]
+	}
 
 	def __init__(self, reader, verbosity):
 		self.scc = SmartCardCommunication(reader, verbosity)
 		self.verbosity = verbosity
-		# TODO check ATR and make sure we have a health-card
+		atr = self.scc.get_atr()
+		if not atr == self.ATR:
+			sys.stderr.write("Unexpected ATR - not a Swiss health insurance card? Exiting.\n")
+			sys.exit(1)
+		if self.verbosity > 0:
+			print "ATR: " + " ".join([hex(x) for x in atr])
+		if self.verbosity > 1:
+			ATR(atr).dump()
+
 
 
 	def decode_id(self, data):
@@ -157,7 +175,7 @@ class HealthCard:
 		return output
 
 	def print_id(self):
-		self.scc.select_file(EF['ID'])
+		self.scc.select_file(self.EF['ID'])
 		data = self.decode_id(self.scc.read_binary(84))
 		print "Name:                  " + data['given_name'] + " " + data['family_name']
 		print "Date of birth (y-m-d): %d-%d-%d" % data['data_of_birth']
