@@ -180,11 +180,10 @@ class HealthCard:
 	def decode_id(self, data):
 		"""
 		Decode ID (identification data) TLV.
-		
+
 		@param data: binary data
 		"""
 		output = self.decode_tlv(self.TLV_FORMATS['ID'], data)
-		print output
 		output['family_name'] = output['name'].split(',')[0].strip()
 		output['given_name'] = output['name'].split(',')[1].strip()
 		SEX = {0: 'unknown', 1: 'male', 2: 'female', 9: 'not applicable'}
@@ -194,7 +193,7 @@ class HealthCard:
 	def decode_ad(self, data):
 		"""
 		Decode AD (administrative data) TLV.
-		
+
 		@param data: binary data
 		"""
 		return self.decode_tlv(self.TLV_FORMATS['AD'], data)
@@ -202,7 +201,7 @@ class HealthCard:
 	def decode_version(self, data):
 		"""
 		Decode VERSION EF.
-		
+
 		@param data: binary data
 		"""
 		output = {}
@@ -215,7 +214,7 @@ class HealthCard:
 		self.scc.select_file(self.EF['ID'])
 		data = self.decode_id(self.scc.read_binary(84))
 		print "Name:                  " + data['given_name'] + " " + data['family_name']
-		print "Date of birth (y-m-d): %d-%d-%d" % data['data_of_birth']
+		print "Date of birth (y-m-d): %d-%d-%d" % data['date_of_birth']
 		print "Insurance number:      " + data['insurance_number']
 		print "Sex:                   " + data['sex']
 
