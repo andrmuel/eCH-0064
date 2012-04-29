@@ -121,7 +121,7 @@ class HealthCard:
 	TLV_FORMATS = {
 		'ID': [
 			(0x80, 50, 's', "name"),
-			(0x82,  8, 's', "date_of_birth"),
+			(0x82,  8, 'd', "date_of_birth"),
 			(0x83, 13, 's', "insurance_number"),
 			(0x84,  1, 'b', "sex"),
 			],
@@ -130,7 +130,7 @@ class HealthCard:
 			(0x91, 50, 's', "insurance_name"),
 			(0x92,  5, 's', "insurance_BAG_number"),
 			(0x93, 20, 's', "card_number"),
-			(0x94,  8, 's', "expiry_date"),
+			(0x94,  8, 'd', "expiry_date"),
 			]
 	}
 
@@ -168,21 +168,35 @@ class HealthCard:
 			offset += 1
 			if entry[2] == 's':
 				output[entry[3]] = l2s(data[offset:offset+length])
+			elif entry[2] == 'd':
+				date = l2s(data[offset:offset+length])
+				output[entry[3]] = (int(date[0:4]), int(date[4:6]), int(date[6:8]))
 			else:
 				output[entry[3]] = data[offset:offset+length]
 			offset += length
 		return output
 
 	def decode_id(self, data):
+		"""
+		Decode ID (identification data) TLV.
+		
+		@param data: binary data
+		"""
 		output = self.decode_tlv(self.TLV_FORMATS['ID'], data)
 		print output
 		output['family_name'] = output['name'].split(',')[0].strip()
 		output['given_name'] = output['name'].split(',')[1].strip()
-		birthdate = output['date_of_birth']
-		output['data_of_birth'] = (int(birthdate[0:4]), int(birthdate[4:6]), int(birthdate[6:8]))
 		SEX = {0: 'unknown', 1: 'male', 2: 'female', 9: 'not applicable'}
 		output['sex'] = SEX[output['sex'][0]]
 		return output
+
+	def decode_ad(self, data):
+		"""
+		Decode AD (administrative data) TLV.
+		
+		@param data: binary data
+		"""
+		return self.decode_tlv(self.TLV_FORMATS['AD'], data)
 
 	def print_id(self):
 		self.scc.select_file(self.EF['ID'])
@@ -192,12 +206,22 @@ class HealthCard:
 		print "Insurance number:      " + data['insurance_number']
 		print "Sex:                   " + data['sex']
 
+	def print_ad(self):
+		self.scc.select_file(self.EF['AD'])
+		data = self.decode_ad(self.scc.read_binary(95))
+		print "Issuing state ID:     " + data['issuing_state_id']
+		print "Insurance name:       " + data['insurance_name']
+		print "Insurance BAG number: " + data['insurance_BAG_number']
+		print "Card number:          " + data['card_number']
+		print "Expiry data (y-m-d):  %d-%d-%d" % data['expiry_date']
+
 
 if __name__ == "__main__":
 	parser = OptionParser(usage="%prog <cmd>", version="%prog 0.1")
 	parser.add_option("-r", "--reader", type="int", dest="reader", help="use reader number N", metavar="N")
 	parser.add_option("-l", "--list-readers", dest="list_readers", action="store_true", help="list available readers")
 	parser.add_option("-i", "--print-id", dest="print_id", action="store_true", help="read, decode and print EF_ID")
+	parser.add_option("-a", "--print-ad", dest="print_ad", action="store_true", help="read, decode and print EF_AD")
 	parser.add_option("-v", "--verbose", action="count", dest="verbosity", default=0, help="verbose output [default: %default]")
 	(options, args) = parser.parse_args()
 
@@ -220,3 +244,5 @@ if __name__ == "__main__":
 	hc = HealthCard(reader, options.verbosity)
 	if options.print_id:
 		hc.print_id()
+	if options.print_ad:
+		hc.print_ad()
