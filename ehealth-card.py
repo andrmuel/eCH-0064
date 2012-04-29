@@ -118,6 +118,22 @@ class HealthCard:
 		'PrK.X509':                [ 0xDF, 0x02, 0x00, 0x17]
 	}
 
+	TLV_FORMATS = {
+		'ID': [
+			(0x80, 50, 's', "name"),
+			(0x82,  8, 's', "date_of_birth"),
+			(0x83, 13, 's', "insurance_number"),
+			(0x84,  1, 'b', "sex"),
+			],
+		'AD': [
+			(0x90,  2, 's', "issuing_state_id"),
+			(0x91, 50, 's', "insurance_name"),
+			(0x92,  5, 's', "insurance_BAG_number"),
+			(0x93, 20, 's', "card_number"),
+			(0x94,  8, 's', "expiry_date"),
+			]
+	}
+
 	def __init__(self, reader, verbosity):
 		self.scc = SmartCardCommunication(reader, verbosity)
 		self.verbosity = verbosity
@@ -130,48 +146,42 @@ class HealthCard:
 		if self.verbosity > 1:
 			ATR(atr).dump()
 
-
-
-	def decode_id(self, data):
+	def decode_tlv(self, tlv_format, data):
 		output = {}
 		offset = 0
 		if options.verbosity > 1:
 			print "decoding data:"
 			print [hex(x) for x in data]
 		if data[0] != 0x65:
-			sys.stderr.write("Warning: expected 0x65 as first byte of EF_ID data, but got %x\n" % data[0])
+			sys.stderr.write("Error: expected 0x65 as first byte of TLV data, but got %x\n" % data[0])
+			return output
 		offset += 2
-		assert data[offset] == 0x80 # name tag
-		offset += 1
-		name_length = data[offset]
-		offset += 1
-		name = l2s(data[offset:offset+name_length])
-		output['family_name'] = name.split(',')[0].strip()
-		output['given_name'] = name.split(',')[1].strip()
-		offset += name_length
-		assert data[offset] == 0x82 # birth date tag
-		offset += 1
-		birthdate_length = data[offset]
-		assert birthdate_length == 8
-		offset += 1
-		birthdate = l2s(data[offset:offset+birthdate_length])
-		output['data_of_birth'] = (int(birthdate[0:4]), int(birthdate[4:6]), int(birthdate[6:8]))
-		offset += birthdate_length
-		assert data[offset] == 0x83 # insurance number tag
-		offset += 1
-		insurance_number_length = data[offset]
-		offset += 1
-		output['insurance_number'] = l2s(data[offset:offset+insurance_number_length])
-		offset += insurance_number_length
-		assert data[offset] == 0x84 # sex tag
-		offset += 1
-		sex_length = data[offset]
-		assert sex_length == 1
-		offset += 1
-		sex = data[offset]
-		SEX = {0: 'unknown', 1: 'male', 2: 'female', 9: 'not applicable'}
-		output['sex'] = SEX[sex]
+		for entry in tlv_format:
+			if data[offset] != entry[0]:
+				sys.stderr.write("Error: expected %x as TLV tag for '%s', but got %x\n" % (entry[0], entry[3], data[offset]))
+				return output
+			offset += 1
+			length = data[offset]
+			if length > entry[1]:
+				sys.stderr.write("Error: TLV length %d too large (max %d) for '%s'\n" % (length, entry[1], entry[3]))
+				return output
+			offset += 1
+			if entry[2] == 's':
+				output[entry[3]] = l2s(data[offset:offset+length])
+			else:
+				output[entry[3]] = data[offset:offset+length]
+			offset += length
+		return output
 
+	def decode_id(self, data):
+		output = self.decode_tlv(self.TLV_FORMATS['ID'], data)
+		print output
+		output['family_name'] = output['name'].split(',')[0].strip()
+		output['given_name'] = output['name'].split(',')[1].strip()
+		birthdate = output['date_of_birth']
+		output['data_of_birth'] = (int(birthdate[0:4]), int(birthdate[4:6]), int(birthdate[6:8]))
+		SEX = {0: 'unknown', 1: 'male', 2: 'female', 9: 'not applicable'}
+		output['sex'] = SEX[output['sex'][0]]
 		return output
 
 	def print_id(self):
