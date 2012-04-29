@@ -198,6 +198,18 @@ class HealthCard:
 		"""
 		return self.decode_tlv(self.TLV_FORMATS['AD'], data)
 
+	def decode_version(self, data):
+		"""
+		Decode VERSION EF.
+		
+		@param data: binary data
+		"""
+		output = {}
+		output['acronym'] = l2s(data[0:3])
+		output['version'] = data[3] & ~0x80
+		output['PDC'] = (data[3] & 0x80) == 0x80
+		return output
+
 	def print_id(self):
 		self.scc.select_file(self.EF['ID'])
 		data = self.decode_id(self.scc.read_binary(84))
@@ -215,6 +227,10 @@ class HealthCard:
 		print "Card number:          " + data['card_number']
 		print "Expiry data (y-m-d):  %d-%d-%d" % data['expiry_date']
 
+	def print_version(self):
+		self.scc.select_file(self.EF['VERSION'])
+		data = self.decode_version(self.scc.read_binary(4))
+		print "%s Version %d (PDC: %s)" % (data['acronym'], data['version'], data['PDC'])
 
 if __name__ == "__main__":
 	parser = OptionParser(usage="%prog <cmd>", version="%prog 0.1")
@@ -222,6 +238,7 @@ if __name__ == "__main__":
 	parser.add_option("-l", "--list-readers", dest="list_readers", action="store_true", help="list available readers")
 	parser.add_option("-i", "--print-id", dest="print_id", action="store_true", help="read, decode and print EF_ID")
 	parser.add_option("-a", "--print-ad", dest="print_ad", action="store_true", help="read, decode and print EF_AD")
+	parser.add_option("-V", "--print-version", dest="print_version", action="store_true", help="read, decode and print EF_AD")
 	parser.add_option("-v", "--verbose", action="count", dest="verbosity", default=0, help="verbose output [default: %default]")
 	(options, args) = parser.parse_args()
 
@@ -246,3 +263,5 @@ if __name__ == "__main__":
 		hc.print_id()
 	if options.print_ad:
 		hc.print_ad()
+	if options.print_version:
+		hc.print_version()
