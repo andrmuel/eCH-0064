@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding: utf-8
 #
 # Andreas Müller, 2012
@@ -12,14 +12,13 @@ Communicate with Swiss eHealth cards as specified by eCH-0064.
 
 import sys
 import os
-import itertools
 from optparse import OptionParser
 import smartcard
 from smartcard.System import readers
 from smartcard.ATR import ATR
 
 def l2s(l):
-	return "".join(map(lambda x: chr(x), l)).decode('utf-8')
+	return bytes(l).decode("utf-8")
 
 
 class SmartCardCommunication:
@@ -32,8 +31,8 @@ class SmartCardCommunication:
 		self.verbosity = verbosity
 		try:
 			self.connection.connect()
-		except smartcard.Exceptions.CardConnectionException, e:
-			print e.message
+		except smartcard.Exceptions.CardConnectionException as e:
+			print(e.message)
 			sys.exit(1)
 
 	def get_atr(self):
@@ -43,7 +42,7 @@ class SmartCardCommunication:
 		SELECT = [0x00, 0xa4, 0x00, 0x00, len(file_id)]
 		data, sw1, sw2 = self.connection.transmit(SELECT + file_id)
 		if self.verbosity > 0:
-			print "SELECT returned sw1 = %x, sw2 = %x" % (sw1, sw2)
+			print("SELECT returned sw1 = %x, sw2 = %x" % (sw1, sw2))
 		if sw1 != 0x90:
 			sys.stderr.write("SELECT failed - exiting\n")
 			sys.exit(1)
@@ -52,7 +51,7 @@ class SmartCardCommunication:
 		READ_BINARY = [0x00, 0xb0, 0x00, 0x00, 0x00, 0x00, length]
 		data, sw1, sw2 = self.connection.transmit(READ_BINARY)
 		if self.verbosity > 0:
-			print "READ BINARY returned sw1 = %x, sw2 = %x" % (sw1, sw2)
+			print("READ BINARY returned sw1 = %x, sw2 = %x" % (sw1, sw2))
 		if sw1 != 0x90:
 			sys.stderr.write("READ BINARY failed - exiting\n")
 			sys.exit(1)
@@ -143,7 +142,7 @@ class HealthCard:
 			sys.stderr.write("Unexpected ATR - not a Swiss health insurance card? Exiting.\n")
 			sys.exit(1)
 		if self.verbosity > 0:
-			print "ATR: " + " ".join([hex(x) for x in atr])
+			print("ATR: " + " ".join([hex(x) for x in atr]))
 		if self.verbosity > 1:
 			ATR(atr).dump()
 
@@ -151,8 +150,8 @@ class HealthCard:
 		output = {}
 		offset = 0
 		if options.verbosity > 1:
-			print "decoding data:"
-			print [hex(x) for x in data]
+			print("decoding data:")
+			print([hex(x) for x in data])
 		if data[0] != 0x65:
 			sys.stderr.write("Error: expected 0x65 as first byte of TLV data, but got %x\n" % data[0])
 			return output
@@ -213,24 +212,24 @@ class HealthCard:
 	def print_id(self):
 		self.scc.select_file(self.EF['ID'])
 		data = self.decode_id(self.scc.read_binary(84))
-		print "Name:                  " + data['given_name'] + " " + data['family_name']
-		print "Date of birth (y-m-d): %d-%d-%d" % data['date_of_birth']
-		print "Insurance number:      " + data['insurance_number']
-		print "Sex:                   " + data['sex']
+		print("Name:                  " + data['given_name'] + " " + data['family_name'])
+		print("Date of birth (y-m-d): %d-%d-%d" % data['date_of_birth'])
+		print("Insurance number:      " + data['insurance_number'])
+		print("Sex:                   " + data['sex'])
 
 	def print_ad(self):
 		self.scc.select_file(self.EF['AD'])
 		data = self.decode_ad(self.scc.read_binary(95))
-		print "Issuing state ID:     " + data['issuing_state_id']
-		print "Insurance name:       " + data['insurance_name']
-		print "Insurance BAG number: " + data['insurance_BAG_number']
-		print "Card number:          " + data['card_number']
-		print "Expiry data (y-m-d):  %d-%d-%d" % data['expiry_date']
+		print("Issuing state ID:     " + data['issuing_state_id'])
+		print("Insurance name:       " + data['insurance_name'])
+		print("Insurance BAG number: " + data['insurance_BAG_number'])
+		print("Card number:          " + data['card_number'])
+		print("Expiry data (y-m-d):  %d-%d-%d" % data['expiry_date'])
 
 	def print_version(self):
 		self.scc.select_file(self.EF['VERSION'])
 		data = self.decode_version(self.scc.read_binary(4))
-		print "%s Version %d (PDC: %s)" % (data['acronym'], data['version'], data['PDC'])
+		print("%s Version %d (PDC: %s)" % (data['acronym'], data['version'], data['PDC']))
 
 	def get_cvc_pdc(self):
 		# TODO make get file command generic .. (-> save lengths in EF dict)
@@ -240,9 +239,8 @@ class HealthCard:
 			return
 		self.scc.select_file(self.EF['CVC.PDC'])
 		data = self.scc.read_binary(217)
-		f = open(filename, 'wb')
-		f.write("".join(chr(x) for x in data))
-		f.close()
+		with open(filename, 'wb') as f:
+			f.write(bytes(data))
 
 if __name__ == "__main__":
 	parser = OptionParser(usage="%prog <cmd>", version="%prog 0.1")
@@ -258,9 +256,8 @@ if __name__ == "__main__":
 	smartcard_readers = readers()
 
 	if options.list_readers:
-		c = itertools.count()
-		for reader in smartcard_readers:
-			print "%s: %s" % (c.next(), reader)
+		for i, reader in enumerate(smartcard_readers):
+			print("%d: %s" % (i, reader))
 		sys.exit(0)
 
 	if options.reader:
