@@ -11,7 +11,6 @@ Communicate with Swiss eHealth cards as specified by eCH-0064.
 """
 
 import sys
-import os
 from optparse import OptionParser
 import smartcard
 from smartcard.System import readers
@@ -231,15 +230,11 @@ class HealthCard:
 		data = self.decode_version(self.scc.read_binary(4))
 		print("%s Version %d (PDC: %s)" % (data['acronym'], data['version'], data['PDC']))
 
-	def get_cvc_pdc(self):
+	def get_cvc_pdc(self, output):
 		# TODO make get file command generic .. (-> save lengths in EF dict)
-		filename = "EF.CVC.PDC.bin"
-		if os.path.exists(filename):
-			sys.stderr.write("Error: file '%s' already exists\n" % filename)
-			return
 		self.scc.select_file(self.EF['CVC.PDC'])
 		data = self.scc.read_binary(217)
-		with open(filename, 'wb') as f:
+		with open(output, 'wb') as f:
 			f.write(bytes(data))
 
 if __name__ == "__main__":
@@ -249,7 +244,7 @@ if __name__ == "__main__":
 	parser.add_option("-i", "--print-id", dest="print_id", action="store_true", help="read, decode and print EF.ID")
 	parser.add_option("-a", "--print-ad", dest="print_ad", action="store_true", help="read, decode and print EF.AD")
 	parser.add_option("-V", "--print-version", dest="print_version", action="store_true", help="read, decode and print EF.VERSION")
-	parser.add_option("",   "--get-cvc-pdc", dest="get_cvc_pdc", action="store_true", help="read and store EF.CVC.PDC")
+	parser.add_option("",   "--get-cvc-pdc", dest="get_cvc_pdc", help="read and store EF.CVC.PDC", metavar="FILE")
 	parser.add_option("-v", "--verbose", action="count", dest="verbosity", default=0, help="verbose output [default: %default]")
 	(options, args) = parser.parse_args()
 
@@ -276,4 +271,4 @@ if __name__ == "__main__":
 	if options.print_version:
 		hc.print_version()
 	if options.get_cvc_pdc:
-		hc.get_cvc_pdc()
+		hc.get_cvc_pdc(options.get_cvc_pdc)
